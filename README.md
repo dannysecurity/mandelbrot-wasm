@@ -68,6 +68,7 @@ Release builds enable size optimizations (`opt-level = "s"`, LTO).
 | Drag | Pan |
 | Scroll wheel | Zoom at cursor |
 | Palette dropdown | Change color theme |
+| Keys `1`–`4` | Quick-switch palettes |
 | Iterations slider | Increase/decrease detail |
 | Reset view | Return to default framing |
 

@@ -7,20 +7,25 @@ const paletteSelect = document.getElementById("palette");
 const iterationsInput = document.getElementById("iterations");
 const resetButton = document.getElementById("reset");
 
-const PALETTES = ["Classic", "Fire", "Ocean", "Grayscale"];
-
 let explorer;
 let dragging = false;
 let lastX = 0;
 let lastY = 0;
 
 function fillPaletteOptions() {
-  PALETTES.forEach((name, index) => {
+  const count = explorer.palette_count();
+  for (let index = 0; index < count; index += 1) {
     const option = document.createElement("option");
     option.value = String(index);
-    option.textContent = name;
+    option.textContent = Explorer.palette_name_at(index);
     paletteSelect.appendChild(option);
-  });
+  }
+}
+
+function setPalette(index) {
+  explorer.set_palette(index);
+  paletteSelect.value = String(explorer.palette_index());
+  scheduleRender();
 }
 
 function drawFrame() {
@@ -42,9 +47,9 @@ function scheduleRender() {
 }
 
 async function boot() {
-  fillPaletteOptions();
   await init();
   explorer = new Explorer(canvas.width, canvas.height);
+  fillPaletteOptions();
   drawFrame();
 
   canvas.addEventListener("mousedown", (event) => {
@@ -79,8 +84,14 @@ async function boot() {
   );
 
   paletteSelect.addEventListener("change", () => {
-    explorer.set_palette(Number(paletteSelect.value));
-    scheduleRender();
+    setPalette(Number(paletteSelect.value));
+  });
+
+  window.addEventListener("keydown", (event) => {
+    const digit = Number(event.key);
+    if (digit >= 1 && digit <= explorer.palette_count()) {
+      setPalette(digit - 1);
+    }
   });
 
   iterationsInput.addEventListener("input", () => {

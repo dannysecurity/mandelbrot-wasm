@@ -88,10 +88,12 @@ pub fn render(
         for x in 0..width {
             let (c_re, c_im) = viewport.map_pixel(x, y, width, height);
             let escape = escape_time(c_re, c_im, max_iter);
+            // The renormalized escape count is smooth in its fractional part; using
+            // that directly avoids banding from scaling by max_iter.
             let t = if escape >= max_iter as f64 {
                 0.0
             } else {
-                (escape / max_iter as f64).fract()
+                escape.fract()
             };
             let color = palette.sample(t);
             let idx = ((y * width + x) * 4) as usize;
@@ -126,6 +128,17 @@ mod tests {
             Palette::Classic,
         );
         assert!(buf.iter().any(|&b| b > 0));
+    }
+
+    #[test]
+    fn smooth_escape_uses_fractional_part() {
+        let c_re = -0.75;
+        let c_im = 0.1;
+        let max_iter = 512;
+        let escape = escape_time(c_re, c_im, max_iter);
+        assert!(escape < max_iter as f64);
+        assert!(escape.fract() > 0.0);
+        assert!(escape.fract() < 1.0);
     }
 
     #[test]

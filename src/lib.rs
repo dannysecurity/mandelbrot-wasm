@@ -73,6 +73,21 @@ impl Explorer {
         self.palette.name().to_string()
     }
 
+    pub fn palette_index(&self) -> u32 {
+        Palette::ALL
+            .iter()
+            .position(|&p| p == self.palette)
+            .unwrap_or(0) as u32
+    }
+
+    pub fn palette_count(&self) -> u32 {
+        Palette::ALL.len() as u32
+    }
+
+    pub fn palette_name_at(index: u32) -> String {
+        Palette::from_index(index as usize).name().to_string()
+    }
+
     pub fn center_re(&self) -> f64 {
         self.viewport.center_re
     }
