@@ -1,0 +1,12 @@
+/target/
+/pkg/
+/node_modules/
+/dist/
+*.wasm
+*.js
+!www/*.js
+Cargo.lock
+.DS_Store
+*.swp
+.idea/
+.vscode/
