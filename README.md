@@ -17,37 +17,76 @@ Pan and zoom through the fractal, switch color palettes, and adjust iteration de
 - [`wasm-pack`](https://rustwasm.github.io/wasm-pack/installer/)
 - A static file server for local development
 
-## Build
+## Build pipeline
 
-Add the WebAssembly target once:
+The explorer is a static site: Rust sources compile to WebAssembly, `wasm-pack` emits JavaScript bindings, and the browser loads both from `pkg/`.
 
-```bash
-rustup target add wasm32-unknown-unknown
+```
+src/*.rs  ──cargo (wasm32)──►  target/wasm32-unknown-unknown/
+                                        │
+                                 wasm-pack build
+                                        ▼
+                              pkg/mandelbrot_wasm_bg.wasm
+                              pkg/mandelbrot_wasm.js
+                                        │
+index.html ──imports──► www/app.js ─────┘
+                              │
+                              ▼
+                     canvas ImageData updates
 ```
 
-Build the WASM package:
+### Quick start
+
+From the repository root:
 
 ```bash
-wasm-pack build --target web --out-dir pkg
-```
-
-Serve the project root (the page loads `index.html` and imports from `pkg/`):
-
-```bash
+./scripts/build.sh
 python3 -m http.server 8080
 ```
 
 Open http://localhost:8080 in your browser.
 
-## Development
+### Pipeline steps
 
-Run native unit tests (core math and palettes, no browser required):
+| Step | Command | What it does |
+|------|---------|--------------|
+| 1. WASM target | `rustup target add wasm32-unknown-unknown` | Installs the cross-compilation triple (once per toolchain). |
+| 2. Compile + bind | `wasm-pack build --target web --out-dir pkg` | Builds the `cdylib`, runs `wasm-bindgen`, and writes ES-module glue into `pkg/`. |
+| 3. Serve | `python3 -m http.server 8080` | Serves `index.html`, `www/app.js`, and generated `pkg/` artifacts over HTTP (required for `fetch`ing the `.wasm` file). |
+
+The helper script runs steps 1–2 and prints the serve command:
+
+```bash
+./scripts/build.sh          # debug build (faster iteration)
+./scripts/build.sh --release  # size-optimized output (matches Cargo `[profile.release]`)
+```
+
+### `pkg/` outputs
+
+`wasm-pack` regenerates this directory on every build (it is gitignored):
+
+| File | Role |
+|------|------|
+| `mandelbrot_wasm_bg.wasm` | Compiled WebAssembly module with the renderer |
+| `mandelbrot_wasm.js` | ES module exporting `Explorer`, `init`, and palette helpers |
+| `mandelbrot_wasm_bg.js` | Low-level loader that instantiates the WASM module |
+| `mandelbrot_wasm.d.ts` | TypeScript declarations for editor tooling |
+
+`www/app.js` imports `../pkg/mandelbrot_wasm.js`, calls `init()` to fetch/instantiate the module, then drives rendering through the `Explorer` API.
+
+### Native tests (no browser)
+
+Core math and palette logic run under `cargo test` on the host triple — the same code paths compiled into the WASM module:
 
 ```bash
 cargo test
 ```
 
-Release builds enable size optimizations (`opt-level = "s"`, LTO).
+Use this while iterating on `src/mandelbrot.rs` or `src/palette.rs` before rebuilding `pkg/`.
+
+## Development
+
+Release builds enable size optimizations (`opt-level = "s"`, LTO). Pass `--release` to `scripts/build.sh` or `wasm-pack` when measuring download size or profiling frame time.
 
 ## Project layout
 
@@ -58,7 +97,9 @@ Release builds enable size optimizations (`opt-level = "s"`, LTO).
 │   └── palette.rs      # color theme definitions
 ├── www/app.js          # canvas UI and input handling
 ├── index.html          # explorer page
-└── scripts/commit-at.sh
+└── scripts/
+    ├── build.sh        # wasm-pack build helper
+    └── commit-at.sh
 ```
 
 ## Controls

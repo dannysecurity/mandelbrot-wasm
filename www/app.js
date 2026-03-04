@@ -39,7 +39,8 @@ function drawFrame() {
   ctx.putImageData(image, 0, 0);
   status.textContent =
     `center ${explorer.center_re().toFixed(6)} + ${explorer.center_im().toFixed(6)}i · ` +
-    `scale ${explorer.scale().toExponential(3)} · ${explorer.palette_name()}`;
+    `scale ${explorer.scale().toExponential(3)} · ${explorer.palette_name()} · ` +
+    `${explorer.max_iterations()} iterations`;
 }
 
 function scheduleRender() {

@@ -86,4 +86,12 @@ mod tests {
             assert_eq!(palette.sample(0.5)[3], 255);
         }
     }
+
+    #[test]
+    fn from_index_round_trips() {
+        for (index, palette) in Palette::ALL.iter().enumerate() {
+            assert_eq!(Palette::from_index(index), *palette);
+        }
+        assert_eq!(Palette::from_index(99), Palette::ALL[99 % Palette::ALL.len()]);
+    }
 }

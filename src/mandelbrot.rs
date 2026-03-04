@@ -149,4 +149,13 @@ mod tests {
         vp.zoom(1e-20, 0.0, 0.0, 100, 100);
         assert!(vp.scale <= 1e6);
     }
+
+    #[test]
+    fn pan_shifts_center() {
+        let mut vp = Viewport::default();
+        let before = (vp.center_re, vp.center_im);
+        vp.pan(50.0, -25.0, 200, 100);
+        assert_ne!(vp.center_re, before.0);
+        assert_ne!(vp.center_im, before.1);
+    }
 }

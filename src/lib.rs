@@ -44,6 +44,10 @@ impl Explorer {
         self.max_iter = max_iter.clamp(32, 4096);
     }
 
+    pub fn max_iterations(&self) -> u32 {
+        self.max_iter
+    }
+
     pub fn pan(&mut self, dx: f64, dy: f64) {
         self.viewport
             .pan(dx, dy, self.width, self.height);
