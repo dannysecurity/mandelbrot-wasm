@@ -26,11 +26,17 @@
         padding: 1rem;
       }
       h1 { font-size: 1.25rem; font-weight: 600; margin: 0; }
+      .stage {
+        width: min(960px, 100%);
+      }
       #canvas {
+        display: block;
+        width: 100%;
+        height: auto;
+        aspect-ratio: 4 / 3;
         border: 1px solid #2a3142;
         border-radius: 8px;
         cursor: grab;
-        max-width: 100%;
         image-rendering: pixelated;
       }
       #canvas:active { cursor: grabbing; }
@@ -58,7 +64,9 @@
   </head>
   <body>
     <h1>Mandelbrot Explorer</h1>
-    <canvas id="canvas" width="800" height="600"></canvas>
+    <div class="stage">
+      <canvas id="canvas" width="800" height="600"></canvas>
+    </div>
     <div class="toolbar">
       <label>
         Palette

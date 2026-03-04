@@ -1,7 +1,6 @@
 import init, { Explorer } from "../pkg/mandelbrot_wasm.js";
 
 const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
 const status = document.getElementById("status");
 const paletteSelect = document.getElementById("palette");
 const iterationsInput = document.getElementById("iterations");
@@ -11,8 +10,10 @@ let explorer;
 let dragging = false;
 let lastX = 0;
 let lastY = 0;
+let renderQueued = false;
 
 function fillPaletteOptions() {
+  paletteSelect.replaceChildren();
   const count = explorer.palette_count();
   for (let index = 0; index < count; index += 1) {
     const option = document.createElement("option");
@@ -22,37 +23,48 @@ function fillPaletteOptions() {
   }
 }
 
+function updateStatus() {
+  status.textContent =
+    `center ${explorer.center_re().toFixed(6)} + ${explorer.center_im().toFixed(6)}i · ` +
+    `scale ${explorer.scale().toExponential(3)} · ${explorer.palette_name()} · ` +
+    `${explorer.max_iterations()} iterations · ${explorer.width()}×${explorer.height()}px`;
+}
+
+function presentFrame() {
+  renderQueued = false;
+  try {
+    explorer.render_to_canvas();
+    updateStatus();
+  } catch (error) {
+    status.textContent = `Render failed: ${error}`;
+    console.error(error);
+  }
+}
+
+function scheduleRender() {
+  if (renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(presentFrame);
+}
+
 function setPalette(index) {
   explorer.set_palette(index);
   paletteSelect.value = String(explorer.palette_index());
   scheduleRender();
 }
 
-function drawFrame() {
-  explorer.render_frame();
-  const pixels = explorer.pixels();
-  const image = new ImageData(
-    new Uint8ClampedArray(pixels),
-    canvas.width,
-    canvas.height,
-  );
-  ctx.putImageData(image, 0, 0);
-  status.textContent =
-    `center ${explorer.center_re().toFixed(6)} + ${explorer.center_im().toFixed(6)}i · ` +
-    `scale ${explorer.scale().toExponential(3)} · ${explorer.palette_name()} · ` +
-    `${explorer.max_iterations()} iterations`;
+function syncCanvasSize() {
+  const width = canvas.clientWidth || canvas.width;
+  const height = canvas.clientHeight || canvas.height;
+  if (width === explorer.width() && height === explorer.height()) {
+    return;
+  }
+  canvas.width = width;
+  canvas.height = height;
+  explorer.resize(width, height);
 }
 
-function scheduleRender() {
-  requestAnimationFrame(drawFrame);
-}
-
-async function boot() {
-  await init();
-  explorer = new Explorer(canvas.width, canvas.height);
-  fillPaletteOptions();
-  drawFrame();
-
+function wireInput() {
   canvas.addEventListener("mousedown", (event) => {
     dragging = true;
     lastX = event.offsetX;
@@ -104,6 +116,24 @@ async function boot() {
     explorer.reset_view();
     scheduleRender();
   });
+
+  window.addEventListener("resize", () => {
+    syncCanvasSize();
+    scheduleRender();
+  });
+}
+
+async function boot() {
+  await init();
+
+  syncCanvasSize();
+  explorer = new Explorer(canvas.width, canvas.height);
+  explorer.bind_canvas(canvas);
+
+  fillPaletteOptions();
+  paletteSelect.value = String(explorer.palette_index());
+  wireInput();
+  scheduleRender();
 }
 
 boot().catch((error) => {

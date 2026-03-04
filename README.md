@@ -32,7 +32,7 @@ src/*.rs  ──cargo (wasm32)──►  target/wasm32-unknown-unknown/
 index.html ──imports──► www/app.js ─────┘
                               │
                               ▼
-                     canvas ImageData updates
+                     canvas blit via web-sys (zero-copy)
 ```
 
 ### Quick start
@@ -72,7 +72,7 @@ The helper script runs steps 1–2 and prints the serve command:
 | `mandelbrot_wasm_bg.js` | Low-level loader that instantiates the WASM module |
 | `mandelbrot_wasm.d.ts` | TypeScript declarations for editor tooling |
 
-`www/app.js` imports `../pkg/mandelbrot_wasm.js`, calls `init()` to fetch/instantiate the module, then drives rendering through the `Explorer` API.
+`www/app.js` imports `../pkg/mandelbrot_wasm.js`, calls `init()` to fetch/instantiate the module, binds the page canvas with `Explorer.bind_canvas()`, and presents frames through `render_to_canvas()` — the RGBA buffer is viewed directly from WASM linear memory via `web-sys`, avoiding a JS-side pixel copy.
 
 ### Native tests (no browser)
 
@@ -93,6 +93,7 @@ Release builds enable size optimizations (`opt-level = "s"`, LTO). Pass `--relea
 ```
 ├── src/
 │   ├── lib.rs          # wasm-bindgen Explorer API
+│   ├── canvas.rs       # web-sys canvas presenter (zero-copy blit)
 │   ├── mandelbrot.rs   # viewport, escape-time, render loop
 │   └── palette.rs      # color theme definitions
 ├── www/app.js          # canvas UI and input handling
