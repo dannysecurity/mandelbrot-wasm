@@ -19,6 +19,15 @@ impl Default for Viewport {
 }
 
 impl Viewport {
+    /// Build a viewport with scale clamped to the same limits used by zoom.
+    pub fn with_clamped(center_re: f64, center_im: f64, scale: f64) -> Self {
+        Self {
+            center_re,
+            center_im,
+            scale: scale.clamp(1e-14, 1e6),
+        }
+    }
+
     pub fn pan(&mut self, dx_pixels: f64, dy_pixels: f64, width: u32, height: u32) {
         let w = width.max(1) as f64;
         let h = height.max(1) as f64;
@@ -157,5 +166,13 @@ mod tests {
         vp.pan(50.0, -25.0, 200, 100);
         assert_ne!(vp.center_re, before.0);
         assert_ne!(vp.center_im, before.1);
+    }
+
+    #[test]
+    fn with_clamped_limits_scale() {
+        let vp = Viewport::with_clamped(0.0, 0.0, 1e-20);
+        assert_eq!(vp.scale, 1e-14);
+        let vp = Viewport::with_clamped(0.0, 0.0, 1e20);
+        assert_eq!(vp.scale, 1e6);
     }
 }

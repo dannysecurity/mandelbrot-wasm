@@ -7,7 +7,7 @@ Pan and zoom through the fractal, switch color palettes, and adjust iteration de
 ## Features
 
 - **WASM renderer** — escape-time Mandelbrot with smooth coloring
-- **Pan / zoom** — drag to pan, scroll wheel to zoom toward the cursor
+- **Pan / zoom** — drag to pan, scroll wheel to zoom toward the cursor; touch drag and pinch on mobile
 - **Palette themes** — Classic, Fire, Ocean, and Grayscale
 - **Adjustable detail** — iteration slider from 64 to 1024
 
@@ -130,10 +130,13 @@ Release builds enable size optimizations (`opt-level = "s"`, LTO). Pass `--relea
 |-------|--------|
 | Drag | Pan |
 | Scroll wheel | Zoom at cursor |
+| Touch drag | Pan (one finger) |
+| Pinch | Zoom toward gesture center |
 | Palette dropdown | Change color theme |
 | Keys `1`–`4` | Quick-switch palettes |
 | Iterations slider | Increase/decrease detail |
 | Reset view | Return to default framing |
+| URL hash | Share or bookmark the current viewport (`#re,im,scale`) |
 
 ## License
 

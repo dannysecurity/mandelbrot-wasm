@@ -58,6 +58,11 @@ impl Explorer {
         self.viewport = Viewport::default();
     }
 
+    /// Restore the complex-plane framing (for deep links and host-driven navigation).
+    pub fn set_viewport(&mut self, center_re: f64, center_im: f64, scale: f64) {
+        self.viewport = Viewport::with_clamped(center_re, center_im, scale);
+    }
+
     pub fn set_palette(&mut self, index: u32) {
         self.palette = Palette::from_index(index as usize);
     }
@@ -192,5 +197,23 @@ mod tests {
         let explorer = Explorer::new(0, 0);
         assert_eq!(explorer.width(), 1);
         assert_eq!(explorer.height(), 1);
+    }
+
+    #[test]
+    fn set_viewport_updates_center_and_scale() {
+        let mut explorer = Explorer::new(64, 48);
+        explorer.set_viewport(-0.75, 0.1, 0.05);
+        assert_eq!(explorer.center_re(), -0.75);
+        assert_eq!(explorer.center_im(), 0.1);
+        assert_eq!(explorer.scale(), 0.05);
+    }
+
+    #[test]
+    fn set_viewport_clamps_extreme_scale() {
+        let mut explorer = Explorer::new(64, 48);
+        explorer.set_viewport(0.0, 0.0, 1e-20);
+        assert_eq!(explorer.scale(), 1e-14);
+        explorer.set_viewport(0.0, 0.0, 1e20);
+        assert_eq!(explorer.scale(), 1e6);
     }
 }
