@@ -84,6 +84,27 @@ cargo test
 
 Use this while iterating on `src/mandelbrot.rs` or `src/palette.rs` before rebuilding `pkg/`.
 
+### Development loop
+
+Not every edit requires a full WASM rebuild:
+
+| Changed files | What to run |
+|---------------|-------------|
+| `src/*.rs` | `cargo test`, then `./scripts/build.sh`, then refresh the browser |
+| `www/app.js`, `index.html` | Refresh the browser only |
+| `Cargo.toml` (deps or release profile) | `./scripts/build.sh` (add `--release` when tuning size) |
+
+Run `./scripts/build.sh --help` for script options. The crate declares both `cdylib` and `rlib` in `Cargo.toml`: `cdylib` is what `wasm-pack` links for the browser, while `rlib` lets `cargo test` compile the same sources on your host triple without a WASM target.
+
+### Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---------|--------------|-----|
+| `Failed to load WASM` / missing `pkg/` import | Build has not been run | `./scripts/build.sh` from the repo root |
+| Page works from a server but not when opened as a file | Browsers block `fetch()` of `.wasm` over `file://` | Serve over HTTP (`python3 -m http.server 8080`) |
+| `wasm-pack is required` | Tool not on `PATH` | Install from the [wasm-pack installer](https://rustwasm.github.io/wasm-pack/installer/) |
+| Stale fractal after editing Rust | Old artifacts in `pkg/` | Re-run `./scripts/build.sh` and hard-refresh the tab |
+
 ## Development
 
 Release builds enable size optimizations (`opt-level = "s"`, LTO). Pass `--release` to `scripts/build.sh` or `wasm-pack` when measuring download size or profiling frame time.
