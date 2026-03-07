@@ -7,6 +7,7 @@ Pan and zoom through the fractal, switch color palettes, and adjust iteration de
 ## Features
 
 - **WASM renderer** — escape-time Mandelbrot with smooth coloring
+- **Deep-zoom perturbation stub** — switches to reference-orbit delta iteration below scale `1e-6` (status bar shows `perturbation` vs `direct`)
 - **Pan / zoom** — drag to pan, scroll wheel to zoom toward the cursor; touch drag and pinch on mobile
 - **Palette themes** — Classic, Fire, Ocean, and Grayscale
 - **Adjustable detail** — iteration slider from 64 to 1024
@@ -116,6 +117,7 @@ Release builds enable size optimizations (`opt-level = "s"`, LTO). Pass `--relea
 │   ├── lib.rs          # wasm-bindgen Explorer API
 │   ├── canvas.rs       # web-sys canvas presenter (zero-copy blit)
 │   ├── mandelbrot.rs   # viewport, escape-time, render loop
+│   ├── perturbation.rs # deep-zoom reference-orbit perturbation stub
 │   └── palette.rs      # color theme definitions
 ├── www/app.js          # canvas UI and input handling
 ├── index.html          # explorer page

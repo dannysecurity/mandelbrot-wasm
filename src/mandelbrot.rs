@@ -1,4 +1,5 @@
 use crate::palette::Palette;
+use crate::perturbation::{perturbation_escape_time, should_use_perturbation, ReferenceOrbit};
 
 /// View rectangle in the complex plane.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -82,6 +83,11 @@ pub fn escape_time(c_re: f64, c_im: f64, max_iter: u32) -> f64 {
     max_iter as f64
 }
 
+/// Whether the given viewport would use perturbation-based rendering.
+pub fn uses_perturbation(viewport: Viewport) -> bool {
+    should_use_perturbation(viewport.scale)
+}
+
 /// Render the Mandelbrot set into an RGBA buffer.
 pub fn render(
     buffer: &mut [u8],
@@ -93,22 +99,58 @@ pub fn render(
 ) {
     assert_eq!(buffer.len(), (width * height * 4) as usize);
 
+    if should_use_perturbation(viewport.scale) {
+        render_perturbation(buffer, width, height, viewport, max_iter, palette);
+        return;
+    }
+
     for y in 0..height {
         for x in 0..width {
             let (c_re, c_im) = viewport.map_pixel(x, y, width, height);
             let escape = escape_time(c_re, c_im, max_iter);
-            // The renormalized escape count is smooth in its fractional part; using
-            // that directly avoids banding from scaling by max_iter.
-            let t = if escape >= max_iter as f64 {
-                0.0
-            } else {
-                escape.fract()
-            };
-            let color = palette.sample(t);
-            let idx = ((y * width + x) * 4) as usize;
-            buffer[idx..idx + 4].copy_from_slice(&color);
+            write_pixel(buffer, width, x, y, escape, max_iter, palette);
         }
     }
+}
+
+fn render_perturbation(
+    buffer: &mut [u8],
+    width: u32,
+    height: u32,
+    viewport: Viewport,
+    max_iter: u32,
+    palette: Palette,
+) {
+    let reference = ReferenceOrbit::build(viewport.center_re, viewport.center_im, max_iter);
+
+    for y in 0..height {
+        for x in 0..width {
+            let (c_re, c_im) = viewport.map_pixel(x, y, width, height);
+            let escape = perturbation_escape_time(c_re, c_im, &reference, max_iter);
+            write_pixel(buffer, width, x, y, escape, max_iter, palette);
+        }
+    }
+}
+
+fn write_pixel(
+    buffer: &mut [u8],
+    width: u32,
+    x: u32,
+    y: u32,
+    escape: f64,
+    max_iter: u32,
+    palette: Palette,
+) {
+    // The renormalized escape count is smooth in its fractional part; using
+    // that directly avoids banding from scaling by max_iter.
+    let t = if escape >= max_iter as f64 {
+        0.0
+    } else {
+        escape.fract()
+    };
+    let color = palette.sample(t);
+    let idx = ((y * width + x) * 4) as usize;
+    buffer[idx..idx + 4].copy_from_slice(&color);
 }
 
 #[cfg(test)]
@@ -174,5 +216,27 @@ mod tests {
         assert_eq!(vp.scale, 1e-14);
         let vp = Viewport::with_clamped(0.0, 0.0, 1e20);
         assert_eq!(vp.scale, 1e6);
+    }
+
+    #[test]
+    fn deep_viewport_selects_perturbation() {
+        let shallow = Viewport::default();
+        assert!(!uses_perturbation(shallow));
+        let deep = Viewport::with_clamped(-0.75, 0.1, 1e-8);
+        assert!(uses_perturbation(deep));
+    }
+
+    #[test]
+    fn perturbation_render_fills_buffer() {
+        let mut buf = vec![0u8; 4 * 4 * 4];
+        render(
+            &mut buf,
+            4,
+            4,
+            Viewport::with_clamped(-0.75, 0.1, 1e-8),
+            128,
+            Palette::Classic,
+        );
+        assert!(buf.iter().any(|&b| b > 0));
     }
 }

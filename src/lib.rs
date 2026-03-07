@@ -1,10 +1,12 @@
 mod canvas;
 mod mandelbrot;
 mod palette;
+mod perturbation;
 
 pub use canvas::{buffer_matches_dimensions, pixel_count, CanvasPresenter};
-pub use mandelbrot::{escape_time, render, Viewport};
+pub use mandelbrot::{escape_time, render, uses_perturbation, Viewport};
 pub use palette::Palette;
+pub use perturbation::{should_use_perturbation, DEEP_ZOOM_SCALE_THRESHOLD};
 
 use wasm_bindgen::prelude::*;
 use web_sys::HtmlCanvasElement;
@@ -140,6 +142,16 @@ impl Explorer {
 
     pub fn scale(&self) -> f64 {
         self.viewport.scale
+    }
+
+    /// True when the current viewport triggers perturbation-based deep-zoom rendering.
+    pub fn uses_perturbation_rendering(&self) -> bool {
+        uses_perturbation(self.viewport)
+    }
+
+    /// Scale threshold below which perturbation rendering is selected.
+    pub fn deep_zoom_threshold() -> f64 {
+        DEEP_ZOOM_SCALE_THRESHOLD
     }
 }
 
