@@ -6,8 +6,11 @@ mod perturbation;
 pub use canvas::{buffer_matches_dimensions, pixel_count, CanvasPresenter};
 pub use mandelbrot::{escape_time, render, uses_perturbation, Viewport};
 pub use palette::Palette;
-pub use perturbation::{should_use_perturbation, DEEP_ZOOM_SCALE_THRESHOLD};
+pub use perturbation::{
+    series_window_depth, should_use_perturbation, PerturbationSession, DEEP_ZOOM_SCALE_THRESHOLD,
+};
 
+use mandelbrot::render_with_session;
 use wasm_bindgen::prelude::*;
 use web_sys::HtmlCanvasElement;
 
@@ -21,6 +24,7 @@ pub struct Explorer {
     palette: Palette,
     buffer: Vec<u8>,
     canvas: Option<CanvasPresenter>,
+    perturbation_session: PerturbationSession,
 }
 
 #[wasm_bindgen]
@@ -36,6 +40,7 @@ impl Explorer {
             palette: Palette::Classic,
             buffer: vec![0; pixel_count(width, height)],
             canvas: None,
+            perturbation_session: PerturbationSession::new(),
         }
     }
 
@@ -153,17 +158,37 @@ impl Explorer {
     pub fn deep_zoom_threshold() -> f64 {
         DEEP_ZOOM_SCALE_THRESHOLD
     }
+
+    /// Length of the cached reference orbit (0 when not in deep-zoom mode).
+    pub fn reference_orbit_length(&self) -> u32 {
+        if uses_perturbation(self.viewport) {
+            self.perturbation_session.reference_orbit_len() as u32
+        } else {
+            0
+        }
+    }
+
+    /// Number of times the reference orbit has been rebuilt this session.
+    pub fn perturbation_rebase_count(&self) -> u32 {
+        self.perturbation_session.rebase_count()
+    }
+
+    /// Series-approximation window depth used by the perturbation path.
+    pub fn series_window_depth() -> u32 {
+        series_window_depth()
+    }
 }
 
 impl Explorer {
     fn render_into_buffer(&mut self) {
-        render(
+        render_with_session(
             &mut self.buffer,
             self.width,
             self.height,
             self.viewport,
             self.max_iter,
             self.palette,
+            Some(&mut self.perturbation_session),
         );
     }
 
@@ -227,5 +252,17 @@ mod tests {
         assert_eq!(explorer.scale(), 1e-14);
         explorer.set_viewport(0.0, 0.0, 1e20);
         assert_eq!(explorer.scale(), 1e6);
+    }
+
+    #[test]
+    fn deep_zoom_populates_reference_orbit_metadata() {
+        let mut explorer = Explorer::new(64, 48);
+        explorer.set_viewport(-0.75, 0.1, 1e-8);
+        explorer.render_frame();
+        assert!(explorer.uses_perturbation_rendering());
+        assert!(explorer.reference_orbit_length() > 0);
+        assert_eq!(explorer.perturbation_rebase_count(), 1);
+        explorer.render_frame();
+        assert_eq!(explorer.perturbation_rebase_count(), 1);
     }
 }

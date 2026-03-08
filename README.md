@@ -7,7 +7,7 @@ Pan and zoom through the fractal, switch color palettes, and adjust iteration de
 ## Features
 
 - **WASM renderer** — escape-time Mandelbrot with smooth coloring
-- **Deep-zoom perturbation stub** — switches to reference-orbit delta iteration below scale `1e-6` (status bar shows `perturbation` vs `direct`)
+- **Deep-zoom perturbation subsystem** — below scale `1e-6`, rendering switches to reference-orbit delta iteration with series-window bootstrapping, delta stability bailout, and per-frame orbit caching (`src/perturbation/`); status bar shows `perturbation`, orbit length, and rebase count
 - **Pan / zoom** — drag to pan, scroll wheel to zoom toward the cursor; touch drag and pinch on mobile
 - **Palette themes** — Classic, Fire, Ocean, and Grayscale
 - **Adjustable detail** — iteration slider from 64 to 1024
@@ -83,7 +83,7 @@ Core math and palette logic run under `cargo test` on the host triple — the sa
 cargo test
 ```
 
-Use this while iterating on `src/mandelbrot.rs` or `src/palette.rs` before rebuilding `pkg/`.
+Use this while iterating on `src/mandelbrot.rs`, `src/perturbation/`, or `src/palette.rs` before rebuilding `pkg/`.
 
 ### Development loop
 
@@ -114,11 +114,17 @@ Release builds enable size optimizations (`opt-level = "s"`, LTO). Pass `--relea
 
 ```
 ├── src/
-│   ├── lib.rs          # wasm-bindgen Explorer API
-│   ├── canvas.rs       # web-sys canvas presenter (zero-copy blit)
-│   ├── mandelbrot.rs   # viewport, escape-time, render loop
-│   ├── perturbation.rs # deep-zoom reference-orbit perturbation stub
-│   └── palette.rs      # color theme definitions
+│   ├── lib.rs              # wasm-bindgen Explorer API
+│   ├── canvas.rs           # web-sys canvas presenter (zero-copy blit)
+│   ├── mandelbrot.rs       # viewport, escape-time, render loop
+│   ├── perturbation/       # deep-zoom reference-orbit perturbation subsystem
+│   │   ├── mod.rs          # threshold heuristic and integration tests
+│   │   ├── reference.rs    # reference orbit + OrbitBackend trait stub
+│   │   ├── delta.rs        # quadratic delta iteration with bailout
+│   │   ├── series.rs       # linear series-approximation window stub
+│   │   ├── stability.rs    # delta magnitude and glitch heuristics
+│   │   └── session.rs      # cached reference-orbit session / rebasing
+│   └── palette.rs          # color theme definitions
 ├── www/app.js          # canvas UI and input handling
 ├── index.html          # explorer page
 └── scripts/

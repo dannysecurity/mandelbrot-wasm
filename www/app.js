@@ -41,9 +41,15 @@ function updateStatus() {
   const renderMode = explorer.uses_perturbation_rendering()
     ? "perturbation"
     : "direct";
+  const orbitLen = explorer.reference_orbit_length();
+  const rebases = explorer.perturbation_rebase_count();
+  const deepZoomMeta =
+    renderMode === "perturbation"
+      ? ` · orbit ${orbitLen} · rebases ${rebases}`
+      : "";
   status.textContent =
     `center ${explorer.center_re().toFixed(6)} + ${explorer.center_im().toFixed(6)}i · ` +
-    `scale ${explorer.scale().toExponential(3)} · ${renderMode} · ${explorer.palette_name()} · ` +
+    `scale ${explorer.scale().toExponential(3)} · ${renderMode}${deepZoomMeta} · ${explorer.palette_name()} · ` +
     `${explorer.max_iterations()} iterations · ${explorer.width()}×${explorer.height()}px`;
 }
 

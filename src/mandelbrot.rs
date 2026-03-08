@@ -1,5 +1,7 @@
 use crate::palette::Palette;
-use crate::perturbation::{perturbation_escape_time, should_use_perturbation, ReferenceOrbit};
+use crate::perturbation::{
+    perturbation_escape_time, should_use_perturbation, PerturbationSession,
+};
 
 /// View rectangle in the complex plane.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -97,10 +99,23 @@ pub fn render(
     max_iter: u32,
     palette: Palette,
 ) {
+    render_with_session(buffer, width, height, viewport, max_iter, palette, None);
+}
+
+/// Render with an optional perturbation session for reference-orbit reuse.
+pub fn render_with_session(
+    buffer: &mut [u8],
+    width: u32,
+    height: u32,
+    viewport: Viewport,
+    max_iter: u32,
+    palette: Palette,
+    session: Option<&mut PerturbationSession>,
+) {
     assert_eq!(buffer.len(), (width * height * 4) as usize);
 
     if should_use_perturbation(viewport.scale) {
-        render_perturbation(buffer, width, height, viewport, max_iter, palette);
+        render_perturbation(buffer, width, height, viewport, max_iter, palette, session);
         return;
     }
 
@@ -120,13 +135,21 @@ fn render_perturbation(
     viewport: Viewport,
     max_iter: u32,
     palette: Palette,
+    session: Option<&mut PerturbationSession>,
 ) {
-    let reference = ReferenceOrbit::build(viewport.center_re, viewport.center_im, max_iter);
+    let mut local_session;
+    let reference = match session {
+        Some(s) => s.orbit_for(viewport.center_re, viewport.center_im, max_iter),
+        None => {
+            local_session = PerturbationSession::new();
+            local_session.orbit_for(viewport.center_re, viewport.center_im, max_iter)
+        }
+    };
 
     for y in 0..height {
         for x in 0..width {
             let (c_re, c_im) = viewport.map_pixel(x, y, width, height);
-            let escape = perturbation_escape_time(c_re, c_im, &reference, max_iter);
+            let escape = perturbation_escape_time(c_re, c_im, reference, max_iter);
             write_pixel(buffer, width, x, y, escape, max_iter, palette);
         }
     }
@@ -238,5 +261,33 @@ mod tests {
             Palette::Classic,
         );
         assert!(buf.iter().any(|&b| b > 0));
+    }
+
+    #[test]
+    fn session_reuses_reference_orbit_across_renders() {
+        let mut buf = vec![0u8; 4 * 4 * 4];
+        let mut session = PerturbationSession::new();
+        let viewport = Viewport::with_clamped(-0.75, 0.1, 1e-8);
+        render_with_session(
+            &mut buf,
+            4,
+            4,
+            viewport,
+            128,
+            Palette::Classic,
+            Some(&mut session),
+        );
+        assert_eq!(session.rebase_count(), 1);
+        render_with_session(
+            &mut buf,
+            4,
+            4,
+            viewport,
+            128,
+            Palette::Classic,
+            Some(&mut session),
+        );
+        assert_eq!(session.rebase_count(), 1);
+        assert!(session.reference_orbit_len() > 1);
     }
 }
