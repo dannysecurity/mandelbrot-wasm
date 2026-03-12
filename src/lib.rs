@@ -1,4 +1,5 @@
 mod canvas;
+mod fractal_core;
 mod mandelbrot;
 mod palette;
 mod perturbation;

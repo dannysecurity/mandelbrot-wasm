@@ -1,6 +1,7 @@
 use super::reference::ReferenceOrbit;
 use super::series::SeriesWindow;
 use super::stability::{DeltaStability, StabilityOutcome};
+use crate::fractal_core::{has_escaped, smooth_escape_count};
 
 /// Smooth escape count via first-order perturbation around `reference`.
 ///
@@ -33,10 +34,8 @@ pub fn perturbation_escape_time(
         let combined_re = z_re + d_re;
         let combined_im = z_im + d_im;
         let mag2 = combined_re * combined_re + combined_im * combined_im;
-        if mag2 > 4.0 {
-            let log_zn = mag2.ln() / 2.0;
-            let nu = (log_zn / 2.0_f64.ln()).ln() / 2.0_f64.ln();
-            return n as f64 + 1.0 - nu;
+        if has_escaped(mag2) {
+            return smooth_escape_count(n, mag2);
         }
 
         let d_re2 = d_re * d_re;

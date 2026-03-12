@@ -1,3 +1,4 @@
+use crate::fractal_core::{has_escaped, mandelbrot_step, smooth_escape_count};
 use crate::palette::Palette;
 use crate::perturbation::{
     perturbation_escape_time, should_use_perturbation, PerturbationSession,
@@ -66,20 +67,13 @@ impl Viewport {
 pub fn escape_time(c_re: f64, c_im: f64, max_iter: u32) -> f64 {
     let mut z_re = 0.0;
     let mut z_im = 0.0;
-    let mut iter = 0u32;
 
-    while iter < max_iter {
-        let z_re2 = z_re * z_re;
-        let z_im2 = z_im * z_im;
-        if z_re2 + z_im2 > 4.0 {
-            let mag: f64 = z_re2 + z_im2;
-            let log_zn = mag.ln() / 2.0_f64;
-            let nu = (log_zn / 2.0_f64.ln()).ln() / 2.0_f64.ln();
-            return iter as f64 + 1.0 - nu;
+    for iter in 0..max_iter {
+        let mag2 = z_re * z_re + z_im * z_im;
+        if has_escaped(mag2) {
+            return smooth_escape_count(iter, mag2);
         }
-        z_im = 2.0 * z_re * z_im + c_im;
-        z_re = z_re2 - z_im2 + c_re;
-        iter += 1;
+        (z_re, z_im) = mandelbrot_step(z_re, z_im, c_re, c_im);
     }
 
     max_iter as f64

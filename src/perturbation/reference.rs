@@ -1,3 +1,5 @@
+use crate::fractal_core::{has_escaped, mandelbrot_step};
+
 /// Precomputed reference orbit for the viewport center `c*`.
 #[derive(Debug, Clone)]
 pub struct ReferenceOrbit {
@@ -19,13 +21,11 @@ impl ReferenceOrbit {
         let mut z_re = 0.0;
         let mut z_im = 0.0;
         for _ in 0..max_iter {
-            let z_re2 = z_re * z_re;
-            let z_im2 = z_im * z_im;
-            if z_re2 + z_im2 > 4.0 {
+            let mag2 = z_re * z_re + z_im * z_im;
+            if has_escaped(mag2) {
                 break;
             }
-            z_im = 2.0 * z_re * z_im + c_im;
-            z_re = z_re2 - z_im2 + c_re;
+            (z_re, z_im) = mandelbrot_step(z_re, z_im, c_re, c_im);
             orbit_re.push(z_re);
             orbit_im.push(z_im);
         }
