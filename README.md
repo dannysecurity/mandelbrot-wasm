@@ -47,6 +47,8 @@ python3 -m http.server 8080
 
 Open http://localhost:8080 in your browser.
 
+A stripped-down canvas demo lives at http://localhost:8080/minimal.html — it uses the same WASM bindings through `www/explorer-host.js` with only pan, zoom, and a status line.
+
 ### Pipeline steps
 
 | Step | Command | What it does |
@@ -73,7 +75,28 @@ The helper script runs steps 1–2 and prints the serve command:
 | `mandelbrot_wasm_bg.js` | Low-level loader that instantiates the WASM module |
 | `mandelbrot_wasm.d.ts` | TypeScript declarations for editor tooling |
 
-`www/app.js` imports `../pkg/mandelbrot_wasm.js`, calls `init()` to fetch/instantiate the module, binds the page canvas with `Explorer.bind_canvas()`, and presents frames through `render_to_canvas()` — the RGBA buffer is viewed directly from WASM linear memory via `web-sys`, avoiding a JS-side pixel copy.
+`www/app.js` imports `./explorer-host.js`, which loads `../pkg/mandelbrot_wasm.js`, calls `init()` to fetch/instantiate the module, binds the page canvas with `Explorer.bind_canvas()`, and presents frames through `render_to_canvas()` — the RGBA buffer is viewed directly from WASM linear memory via `web-sys`, avoiding a JS-side pixel copy.
+
+### Minimal canvas host
+
+`www/explorer-host.js` is the shared WASM-to-canvas bridge. It wraps module boot, canvas binding, `requestAnimationFrame` scheduling, responsive sizing, and pointer pan/zoom so host pages stay thin:
+
+```js
+import { ExplorerHost } from "./explorer-host.js";
+
+const host = await ExplorerHost.create(canvas, {
+  onPresent(explorer) {
+    explorer.render_to_canvas();
+  },
+});
+host.wirePointerPanZoom();
+host.scheduleRender();
+```
+
+| Page | Script | What it adds beyond the host |
+|------|--------|------------------------------|
+| `minimal.html` | `www/minimal.js` | Status line only |
+| `index.html` | `www/app.js` | Palettes, iterations, touch, URL hash |
 
 ### Native tests (no browser)
 
@@ -92,7 +115,7 @@ Not every edit requires a full WASM rebuild:
 | Changed files | What to run |
 |---------------|-------------|
 | `src/*.rs` | `cargo test`, then `./scripts/build.sh`, then refresh the browser |
-| `www/app.js`, `index.html` | Refresh the browser only |
+| `www/*.js`, `index.html`, `minimal.html` | Refresh the browser only |
 | `Cargo.toml` (deps or release profile) | `./scripts/build.sh` (add `--release` when tuning size) |
 
 Run `./scripts/build.sh --help` for script options. The crate declares both `cdylib` and `rlib` in `Cargo.toml`: `cdylib` is what `wasm-pack` links for the browser, while `rlib` lets `cargo test` compile the same sources on your host triple without a WASM target.
@@ -125,8 +148,12 @@ Release builds enable size optimizations (`opt-level = "s"`, LTO). Pass `--relea
 │   │   ├── stability.rs    # delta magnitude and glitch heuristics
 │   │   └── session.rs      # cached reference-orbit session / rebasing
 │   └── palette.rs          # color theme definitions
-├── www/app.js          # canvas UI and input handling
-├── index.html          # explorer page
+├── www/
+│   ├── explorer-host.js  # shared WASM-to-canvas bridge
+│   ├── minimal.js        # minimal demo UI
+│   └── app.js            # full explorer UI and input handling
+├── index.html          # full explorer page
+├── minimal.html        # minimal WASM canvas demo
 └── scripts/
     ├── build.sh        # wasm-pack build helper
     └── commit-at.sh

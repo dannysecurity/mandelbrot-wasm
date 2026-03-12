@@ -118,6 +118,11 @@ impl Explorer {
         self.height
     }
 
+    /// Byte length of the internal RGBA buffer (width × height × 4).
+    pub fn buffer_byte_length(&self) -> u32 {
+        self.buffer.len() as u32
+    }
+
     pub fn palette_name(&self) -> String {
         self.palette.name().to_string()
     }
@@ -227,6 +232,12 @@ mod tests {
         assert_eq!(explorer.width(), 20);
         assert_eq!(explorer.height(), 15);
         assert_eq!(explorer.buffer.len(), pixel_count(20, 15));
+    }
+
+    #[test]
+    fn buffer_byte_length_matches_pixel_count() {
+        let explorer = Explorer::new(32, 24);
+        assert_eq!(explorer.buffer_byte_length(), pixel_count(32, 24) as u32);
     }
 
     #[test]

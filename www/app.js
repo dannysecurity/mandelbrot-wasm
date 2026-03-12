@@ -1,4 +1,4 @@
-import init, { Explorer } from "../pkg/mandelbrot_wasm.js";
+import { Explorer, ExplorerHost, canvasPoint } from "./explorer-host.js";
 
 const canvas = document.getElementById("canvas");
 const stage = document.querySelector(".stage");
@@ -7,28 +7,21 @@ const paletteSelect = document.getElementById("palette");
 const iterationsInput = document.getElementById("iterations");
 const resetButton = document.getElementById("reset");
 
-let explorer;
+let host;
 let dragging = false;
 let lastX = 0;
 let lastY = 0;
-let renderQueued = false;
 let hashTimer = null;
 let activeTouches = new Map();
 let lastPinchDistance = 0;
 
-function getCanvasPoint(clientX, clientY) {
-  const rect = canvas.getBoundingClientRect();
-  const scaleX = canvas.width / rect.width;
-  const scaleY = canvas.height / rect.height;
-  return {
-    x: (clientX - rect.left) * scaleX,
-    y: (clientY - rect.top) * scaleY,
-  };
+function explorer() {
+  return host.explorer;
 }
 
 function fillPaletteOptions() {
   paletteSelect.replaceChildren();
-  const count = explorer.palette_count();
+  const count = explorer().palette_count();
   for (let index = 0; index < count; index += 1) {
     const option = document.createElement("option");
     option.value = String(index);
@@ -38,19 +31,19 @@ function fillPaletteOptions() {
 }
 
 function updateStatus() {
-  const renderMode = explorer.uses_perturbation_rendering()
+  const renderMode = explorer().uses_perturbation_rendering()
     ? "perturbation"
     : "direct";
-  const orbitLen = explorer.reference_orbit_length();
-  const rebases = explorer.perturbation_rebase_count();
+  const orbitLen = explorer().reference_orbit_length();
+  const rebases = explorer().perturbation_rebase_count();
   const deepZoomMeta =
     renderMode === "perturbation"
       ? ` · orbit ${orbitLen} · rebases ${rebases}`
       : "";
   status.textContent =
-    `center ${explorer.center_re().toFixed(6)} + ${explorer.center_im().toFixed(6)}i · ` +
-    `scale ${explorer.scale().toExponential(3)} · ${renderMode}${deepZoomMeta} · ${explorer.palette_name()} · ` +
-    `${explorer.max_iterations()} iterations · ${explorer.width()}×${explorer.height()}px`;
+    `center ${explorer().center_re().toFixed(6)} + ${explorer().center_im().toFixed(6)}i · ` +
+    `scale ${explorer().scale().toExponential(3)} · ${renderMode}${deepZoomMeta} · ${explorer().palette_name()} · ` +
+    `${explorer().max_iterations()} iterations · ${explorer().width()}×${explorer().height()}px`;
 }
 
 function scheduleHashUpdate() {
@@ -59,9 +52,9 @@ function scheduleHashUpdate() {
   }
   hashTimer = setTimeout(() => {
     hashTimer = null;
-    const re = explorer.center_re();
-    const im = explorer.center_im();
-    const scale = explorer.scale();
+    const re = explorer().center_re();
+    const im = explorer().center_im();
+    const scale = explorer().scale();
     location.hash = `${re.toFixed(6)},${im.toFixed(6)},${scale.toExponential(3)}`;
   }, 250);
 }
@@ -75,50 +68,26 @@ function applyViewportFromHash() {
   if (![re, im, scale].every(Number.isFinite)) {
     return;
   }
-  explorer.set_viewport(re, im, scale);
-}
-
-function presentFrame() {
-  renderQueued = false;
-  try {
-    explorer.render_to_canvas();
-    updateStatus();
-  } catch (error) {
-    status.textContent = `Render failed: ${error}`;
-    console.error(error);
-  }
+  explorer().set_viewport(re, im, scale);
 }
 
 function scheduleRender() {
-  if (renderQueued) return;
-  renderQueued = true;
-  requestAnimationFrame(presentFrame);
+  host.scheduleRender();
 }
 
 function setPalette(index) {
-  explorer.set_palette(index);
-  paletteSelect.value = String(explorer.palette_index());
+  explorer().set_palette(index);
+  paletteSelect.value = String(explorer().palette_index());
   scheduleRender();
 }
 
-function syncCanvasSize() {
-  const width = Math.max(1, Math.floor(canvas.clientWidth || canvas.width));
-  const height = Math.max(1, Math.floor(canvas.clientHeight || canvas.height));
-  if (width === explorer.width() && height === explorer.height()) {
-    return;
-  }
-  canvas.width = width;
-  canvas.height = height;
-  explorer.resize(width, height);
-}
-
 function handlePanDelta(clientX, clientY) {
-  const point = getCanvasPoint(clientX, clientY);
+  const point = canvasPoint(canvas, clientX, clientY);
   const dx = point.x - lastX;
   const dy = point.y - lastY;
   lastX = point.x;
   lastY = point.y;
-  explorer.pan(dx, dy);
+  explorer().pan(dx, dy);
   scheduleRender();
   scheduleHashUpdate();
 }
@@ -132,11 +101,12 @@ function handlePinchZoom() {
   const distance = Math.hypot(second.x - first.x, second.y - first.y);
   if (lastPinchDistance > 0 && distance > 0) {
     const factor = distance / lastPinchDistance;
-    const focus = getCanvasPoint(
+    const focus = canvasPoint(
+      canvas,
       (first.clientX + second.clientX) / 2,
       (first.clientY + second.clientY) / 2,
     );
-    explorer.zoom(factor, focus.x, focus.y);
+    explorer().zoom(factor, focus.x, focus.y);
     scheduleRender();
     scheduleHashUpdate();
   }
@@ -146,7 +116,7 @@ function handlePinchZoom() {
 function wireInput() {
   canvas.addEventListener("mousedown", (event) => {
     dragging = true;
-    const point = getCanvasPoint(event.clientX, event.clientY);
+    const point = canvasPoint(canvas, event.clientX, event.clientY);
     lastX = point.x;
     lastY = point.y;
   });
@@ -165,8 +135,8 @@ function wireInput() {
     (event) => {
       event.preventDefault();
       const factor = event.deltaY < 0 ? 1.15 : 1 / 1.15;
-      const point = getCanvasPoint(event.clientX, event.clientY);
-      explorer.zoom(factor, point.x, point.y);
+      const point = canvasPoint(canvas, event.clientX, event.clientY);
+      explorer().zoom(factor, point.x, point.y);
       scheduleRender();
       scheduleHashUpdate();
     },
@@ -187,7 +157,7 @@ function wireInput() {
       }
       if (activeTouches.size === 1) {
         const touch = [...activeTouches.values()][0];
-        const point = getCanvasPoint(touch.clientX, touch.clientY);
+        const point = canvasPoint(canvas, touch.clientX, touch.clientY);
         lastX = point.x;
         lastY = point.y;
       }
@@ -241,18 +211,18 @@ function wireInput() {
 
   window.addEventListener("keydown", (event) => {
     const digit = Number(event.key);
-    if (digit >= 1 && digit <= explorer.palette_count()) {
+    if (digit >= 1 && digit <= explorer().palette_count()) {
       setPalette(digit - 1);
     }
   });
 
   iterationsInput.addEventListener("input", () => {
-    explorer.set_max_iterations(Number(iterationsInput.value));
+    explorer().set_max_iterations(Number(iterationsInput.value));
     scheduleRender();
   });
 
   resetButton.addEventListener("click", () => {
-    explorer.reset_view();
+    explorer().reset_view();
     scheduleRender();
     scheduleHashUpdate();
   });
@@ -262,23 +232,25 @@ function wireInput() {
     scheduleRender();
   });
 
-  const resizeObserver = new ResizeObserver(() => {
-    syncCanvasSize();
-    scheduleRender();
-  });
-  resizeObserver.observe(stage);
+  host.observeResize(stage);
 }
 
 async function boot() {
-  await init();
-
-  explorer = new Explorer(canvas.width, canvas.height);
-  explorer.bind_canvas(canvas);
-  syncCanvasSize();
+  host = await ExplorerHost.create(canvas, {
+    onPresent(explorer) {
+      try {
+        explorer.render_to_canvas();
+        updateStatus();
+      } catch (error) {
+        status.textContent = `Render failed: ${error}`;
+        console.error(error);
+      }
+    },
+  });
   applyViewportFromHash();
 
   fillPaletteOptions();
-  paletteSelect.value = String(explorer.palette_index());
+  paletteSelect.value = String(explorer().palette_index());
   wireInput();
   scheduleRender();
 }

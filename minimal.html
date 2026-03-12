@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mandelbrot — minimal canvas</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0f1117;
+        --text: #e6e8ef;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 1rem;
+      }
+      h1 { font-size: 1rem; font-weight: 500; margin: 0; opacity: 0.9; }
+      .stage { width: min(640px, 100%); }
+      #canvas {
+        display: block;
+        width: 100%;
+        height: auto;
+        aspect-ratio: 4 / 3;
+        border: 1px solid #2a3142;
+        border-radius: 6px;
+        cursor: grab;
+        touch-action: none;
+        image-rendering: pixelated;
+      }
+      #canvas:active { cursor: grabbing; }
+      #status {
+        font-size: 0.8rem;
+        opacity: 0.8;
+        font-variant-numeric: tabular-nums;
+      }
+      a { color: #6ea8fe; }
+    </style>
+  </head>
+  <body>
+    <h1>Mandelbrot — minimal WASM canvas</h1>
+    <div class="stage">
+      <canvas id="canvas" width="640" height="480"></canvas>
+    </div>
+    <p id="status">Loading WebAssembly…</p>
+    <p><a href="./index.html">Open full explorer</a></p>
+    <script type="module" src="./www/minimal.js"></script>
+  </body>
+</html>

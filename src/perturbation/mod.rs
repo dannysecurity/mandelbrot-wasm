@@ -30,6 +30,7 @@ pub fn should_use_perturbation(scale: f64) -> bool {
 mod tests {
     use super::*;
     use crate::mandelbrot::escape_time;
+    use crate::perturbation::reference::ReferenceOrbit;
 
     #[test]
     fn threshold_selects_deep_zoom_only() {
